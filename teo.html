@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/2.5.16/vue.min.js"></script>
+    <script src="https://unpkg.com/vue-croppie/dist/vue-croppie.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.18.0/axios.min.js"></script>
+
+</head>
+<body>
+<div id="app">
+    <!-- Note that 'ref' is important here (value can be anything). read the description about `ref` below. -->
+    
+    <vue-croppie
+            ref=croppieRef
+            :enableOrientation="true"
+            @result="result"
+            @update="update">
+    </vue-croppie>
+    <img :src="cropped">
+    <button @click="crop()">Crop Via Callback</button>
+
+
+
+</div>
+<script>
+    Vue.use(VueCroppie.default);
+    new Vue({
+        el:'#app',
+        mounted() {
+            // Upon mounting of the component, we accessed the .bind({...})
+            // function to put an initial image on the canvas.
+            this.$refs.croppieRef.bind({
+                url: 'http://i.imgur.com/Fq2DMeH.jpg',
+            })
+        },
+        data() {
+            return {
+                cropped: null,
+                conver_image:'',
+                images: [
+                ]
+            }
+        },
+        methods: {
+            convert(dataurl){
+                var arr = dataurl.split(','), mime = arr[0].match(/:(.*?);/)[1],
+                    bstr = atob(arr[1]), n = bstr.length, u8arr = new Uint8Array(n);
+                while(n--){
+                    u8arr[n] = bstr.charCodeAt(n);
+                }
+                return new Blob([u8arr], {type:mime});
+            },
+            bind() {
+                let url = this.images;
+                this.$refs.croppieRef.bind({
+                    url: url,
+                });
+            },
+            // CALBACK USAGE
+            b64toBlob(b64Data, contentType, sliceSize) {
+                contentType = contentType || '';
+                sliceSize = sliceSize || 512;
+
+                var byteCharacters = atob(b64Data);
+                var byteArrays = [];
+
+                for (var offset = 0; offset < byteCharacters.length; offset += sliceSize) {
+                    var slice = byteCharacters.slice(offset, offset + sliceSize);
+
+                    var byteNumbers = new Array(slice.length);
+                    for (var i = 0; i < slice.length; i++) {
+                        byteNumbers[i] = slice.charCodeAt(i);
+                    }
+
+                    var byteArray = new Uint8Array(byteNumbers);
+
+                    byteArrays.push(byteArray);
+                }
+
+                var blob = new Blob(byteArrays, {type: contentType});
+                return blob;
+            },
+            imagetoblob(ImgId){
+                var ImageURL = document.getElementById(ImgId).getAttribute('src');
+                // Split the base64 string in data and contentType
+                var block = ImageURL.split(";");
+                // Get the content type of the image
+                var contentType = block[0].split(":")[1];// In this case "image/gif"
+                // get the real base64 content of the file
+                var realData = block[1].split(",")[1];// In this case "R0lGODlhPQBEAPeoAJosM...."
+
+                // Convert it to a blob to upload
+                return this.b64toBlob(realData, contentType);
+            },
+
+            crop() {
+                var _this = this;
+                let options = {
+                    format: 'jpeg',
+
+                }
+                this.$refs.croppieRef.result(options, (output) => {
+                    this.cropped = output;
+                    this.conver_image = _this.convert(this.cropped);
+
+                    form = new FormData();
+                    form.append("file", _this.imagetoblob('cropped_image'));
+                    form.append("action",'test-image');
+                    axios.post("http://localhost:8000/teoem",form).then(res=>{
+                        console.log(res);
+                    })
+                });
+
+            },
+            // EVENT USAGE
+            cropViaEvent() {
+                this.$refs.croppieRef.result(options);
+            },
+            result(output) {
+                this.cropped = output;
+            },
+            update(val) {
+
+            },
+
+        }
+    })
+</script>
+</body>
+
+</html>
